@@ -6,7 +6,7 @@ export default function ListaDesembarques({ resultados, onTogglePrioridad }) {
   }
 
   return (
-    <table className="panel__table">
+    <table className="panel__table" style={{ color: '#0b1220' }}>
       <thead>
         <tr>
           <th>Prioridad</th>

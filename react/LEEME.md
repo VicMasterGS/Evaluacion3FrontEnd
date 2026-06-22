@@ -9,8 +9,7 @@ useState:
 
 
 
-
-## Para Usar: ##
+## PARA USAR: ##
 cd react
 npx json-server --watch db.json --port 3001
 
