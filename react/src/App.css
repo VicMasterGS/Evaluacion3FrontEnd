@@ -1,0 +1,132 @@
+.panel {
+  width: min(1120px, calc(100% - 32px));
+  margin: 24px auto;
+  padding: 24px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+}
+
+.panel__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.panel__header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.panel__header p {
+  margin: 8px 0 0;
+  color: var(--text);
+}
+
+.panel__status {
+  background: var(--accent-bg);
+  color: var(--text-h);
+  border: 1px solid rgba(170, 59, 255, 0.15);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-weight: 600;
+}
+
+.panel__filters {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.panel__filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.panel__filters input,
+.panel__filters select {
+  width: 100%;
+  min-width: 180px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font: inherit;
+  color: var(--text-h);
+  background: #fafafa;
+}
+
+.panel__table-container {
+  overflow-x: auto;
+}
+
+.panel__table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.panel__table th,
+.panel__table td {
+  text-align: left;
+  padding: 14px 12px;
+  border-bottom: 1px solid #eceaed;
+}
+
+.panel__table th {
+  color: var(--text-h);
+  font-weight: 700;
+  background: #f7f5ff;
+}
+
+.panel__row--priority {
+  background: rgba(255, 223, 186, 0.35);
+}
+
+.panel__button {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.panel__button:hover {
+  transform: translateY(-1px);
+  background: #8f2fe0;
+}
+
+.panel__message {
+  padding: 32px;
+  border-radius: 18px;
+  text-align: center;
+  background: #f7f7fb;
+  color: var(--text-h);
+}
+
+.panel__message--error {
+  background: #ffe6e6;
+  color: #8b1a1a;
+}
+
+@media (max-width: 840px) {
+  .panel {
+    padding: 18px;
+  }
+
+  .panel__filters {
+    grid-template-columns: 1fr;
+  }
+
+  .panel__table {
+    min-width: 0;
+  }
+}
