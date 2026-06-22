@@ -11,21 +11,32 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
+  const cargarDesembarques = async () => {
     setLoading(true)
-    fetch('http://localhost:3001/desembarques')
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('No se pudo leer el servicio de desembarques')
-        }
-        return response.json()
-      })
-      .then((data) => {
-        const listado = data.map((item) => ({ ...item, prioridad: false }))
-        setDesembarques(listado)
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
+    setError(null)
+    try {
+      const response = await fetch('http://localhost:3001/desembarques')
+      if (!response.ok) {
+        throw new Error(
+          response.status === 404
+            ? 'Recurso no encontrado en el servicio'
+            : `Error ${response.status}: No se pudo leer el servicio de desembarques`
+        )
+      }
+      const data = await response.json()
+      const listado = data.map((item) => ({ ...item, prioridad: false }))
+      setDesembarques(listado)
+      setError(null)
+    } catch (err) {
+      setError(err.message || 'Error desconocido al conectar con el servicio')
+      setDesembarques([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    cargarDesembarques()
   }, [])
 
   const resultados = useMemo(() => {
@@ -86,9 +97,22 @@ function App() {
       </section>
 
       {loading ? (
-        <div className="panel__message">Cargando desembarques...</div>
+        <section className="panel__state panel__state--loading">
+          <div className="panel__spinner"></div>
+          <p>Cargando desembarques desde el servicio...</p>
+        </section>
       ) : error ? (
-        <div className="panel__message panel__message--error">Error: {error}</div>
+        <section className="panel__state panel__state--error">
+          <svg className="panel__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <p><strong>Error al conectar:</strong> {error}</p>
+          <button type="button" className="panel__button-retry" onClick={cargarDesembarques}>
+            Reintentar
+          </button>
+        </section>
       ) : (
         <section className="panel__table-container">
           <ListaDesembarques resultados={resultados} onTogglePrioridad={togglePrioridad} />
