@@ -81,12 +81,18 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   font: inherit;
-  color: var(--text-h);
+  color: #0b1220;
   background: #ffffff;
   transition: all 0.3s ease;
 }
 .panel__filters input::placeholder {
   color: #7a7a85;
+}
+
+.panel__field-error {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin-top: 6px;
 }
 
 

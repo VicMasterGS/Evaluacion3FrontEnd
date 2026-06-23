@@ -6,9 +6,57 @@ const estados = ['todos', 'pendiente', 'procesado', 'rechazado']
 
 const STORAGE_KEY = 'desembarques-prioridad'
 
+const normalizeApiBaseUrl = (value) => {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error('La variable VITE_API_URL no está configurada.')
+  }
+
+  try {
+    const url = new URL(value.trim())
+    return `${url.origin}${url.pathname.replace(/\/+$/, '')}`
+  } catch {
+    throw new Error('VITE_API_URL no contiene una URL válida.')
+  }
+}
+
+const getApiBaseUrl = () => normalizeApiBaseUrl(import.meta.env.VITE_API_URL)
+
+const validateApiConfig = () => {
+  try {
+    getApiBaseUrl()
+    return ''
+  } catch (err) {
+    return err instanceof Error ? err.message : 'Error en configuración de API.'
+  }
+}
+
+const buildApiUrl = (endpoint) => {
+  const base = getApiBaseUrl()
+  return `${base.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`
+}
+
+const sanitizeFilterText = (value) => {
+  const normalized = value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[^A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ\s._-]/g, '')
+  return normalized.slice(0, 50)
+}
+
+const validateFilterText = (value) => {
+  if (value.length > 50) {
+    return 'Máximo 50 caracteres.'
+  }
+  if (!/^[A-Za-z0-9ÁÉÍÓÚÜÑáéíóúüñ\s._-]*$/.test(value)) {
+    return 'Solo letras, números y los símbolos , . _ - son válidos.'
+  }
+  return ''
+}
+
 function App() {
   const [desembarques, setDesembarques] = useState([])
   const [filterText, setFilterText] = useState('')
+  const [filterTextError, setFilterTextError] = useState('')
   const [filterEstado, setFilterEstado] = useState('todos')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -16,6 +64,13 @@ function App() {
   const cargarDesembarques = async () => {
     setLoading(true)
     setError(null)
+
+    const configError = validateApiConfig()
+    if (configError) {
+      setLoading(false)
+      setError(configError)
+      return
+    }
 
     let savedPriorities = {}
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -28,7 +83,8 @@ function App() {
     }
 
     try {
-      const response = await fetch('http://localhost:3001/desembarques')
+      const url = buildApiUrl('desembarques')
+      const response = await fetch(url)
       if (!response.ok) {
         throw new Error(
           response.status === 404
@@ -36,7 +92,14 @@ function App() {
             : `Error ${response.status}: No se pudo leer el servicio de desembarques`
         )
       }
+      const contentType = response.headers.get('content-type') ?? ''
+      if (!contentType.includes('application/json')) {
+        throw new Error('El servicio no devolvió contenido JSON válido.')
+      }
       const data = await response.json()
+      if (!Array.isArray(data)) {
+        throw new TypeError('La respuesta del servicio no tiene el formato esperado.')
+      }
       const listado = data.map((item) => ({
         ...item,
         prioridad: Boolean(savedPriorities[item.id]),
@@ -72,8 +135,8 @@ function App() {
     const controller = new AbortController()
     const id = setTimeout(() => controller.abort(), timeout)
     try {
-      // small request to validate service availability
-      const res = await fetch('http://localhost:3001/desembarques?_limit=1', { signal: controller.signal })
+      const url = `${buildApiUrl('desembarques')}?_limit=1`
+      const res = await fetch(url, { signal: controller.signal })
       clearTimeout(id)
       return res.ok
     } catch (err) {
@@ -90,6 +153,13 @@ function App() {
     ;(async () => {
       setLoading(true)
       setError(null)
+      const configError = validateApiConfig()
+      if (!mounted) return
+      if (configError) {
+        setLoading(false)
+        setError(configError)
+        return
+      }
       const ok = await comprobarServicio(3000)
       if (!mounted) return
       if (!ok) {
@@ -105,19 +175,24 @@ function App() {
   }, [])
 
   const serverCommand = `cd react && npx json-server --watch db.json --port 3001`
+  const envInstructions = 'Crea react/.env con:\nVITE_API_URL=http://localhost:3001'
   const isNetworkError = (msg) => {
     if (!msg) return false
     return /failed to fetch/i.test(msg) || /network/i.test(msg)
   }
 
   const resultados = useMemo(() => {
+    const texto = sanitizeFilterText(filterText).toLowerCase()
+    const estadoValido = estados.includes(filterEstado) ? filterEstado : 'todos'
+
     return desembarques.filter((item) => {
-      const texto = filterText.trim().toLowerCase()
       const matchesText =
+        texto === '' ||
         item.especie.toLowerCase().includes(texto) ||
+        item.estado.toLowerCase().includes(texto) ||
         item.embarcacion.toLowerCase().includes(texto) ||
         item.fecha.includes(texto)
-      const matchesEstado = filterEstado === 'todos' || item.estado === filterEstado
+      const matchesEstado = estadoValido === 'todos' || item.estado === estadoValido
       return matchesText && matchesEstado
     })
   }, [desembarques, filterEstado, filterText])
@@ -141,18 +216,32 @@ function App() {
 
       <section className="panel__filters">
         <label htmlFor="search-desembarques" style={{ color: '#0b1220' }}>
-          Buscar especie, barco o fecha:
+          Buscar por especie o estado:
         </label>
         <input
           id="search-desembarques"
           type="search"
           value={filterText}
-          onChange={(event) => setFilterText(event.target.value)}
-          placeholder="Ej. Jurel, Don Lorenzo, 2026-06-15"
+          maxLength={50}
+          onChange={(event) => {
+            const rawValue = event.target.value
+            const sanitized = sanitizeFilterText(rawValue)
+            setFilterText(sanitized)
+            setFilterTextError(validateFilterText(rawValue))
+          }}
+          placeholder="Ej. Jurel, pendiente, rechazado"
           style={{ color: '#0b1220' }}
+          aria-describedby="search-error"
         />
+        {filterTextError && (
+          <div id="search-error" className="panel__field-error">
+            {filterTextError}
+          </div>
+        )}
 
-        <label htmlFor="estado-desembarques" style={{ color: '#0b1220' }}>Estado:</label>
+        <label htmlFor="estado-desembarques" style={{ color: '#0b1220' }}>
+          Estado:
+        </label>
         <select
           id="estado-desembarques"
           value={filterEstado}
@@ -188,10 +277,12 @@ function App() {
               <button type="button" className="panel__button-retry" onClick={cargarDesembarques}>
                 Reintentar
               </button>
-              {isNetworkError(error) && (
+              {(isNetworkError(error) || /VITE_API_URL/i.test(error)) && (
                 <div className="panel__help" style={{ background: '#ffffff', color: '#0b1220' }}>
                   <div>Comprueba que el servicio JSON está levantado en tu máquina. Ejecuta en la carpeta del proyecto:</div>
                   <pre><code>{serverCommand}</code></pre>
+                  <div>Además, asegúrate de configurar <code>VITE_API_URL</code> en <code>react/.env</code> como:</div>
+                  <pre><code>{envInstructions}</code></pre>
                   <div>Después vuelve a cargar la página.</div>
                 </div>
               )}
